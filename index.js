@@ -78,9 +78,12 @@ async function run() {
       let query = {};
       if (req.query.category) {
         query.category = decodeURIComponent(req.query.category);
+      } else if (req.query.email) {
+        query.organizer_email = req.query.email.toString();
       } else {
         query = {};
       }
+      console.log("from bottom", query);
       const result = await allVolunteerPostCollection.find(query).toArray();
       res.send(result);
     });
