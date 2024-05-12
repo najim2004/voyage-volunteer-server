@@ -15,7 +15,11 @@ const port = process.env.PORT || 5000;
 // ---------------------middleware--------------------
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://voyage-volunteer.web.app",
+    ],
     credentials: true,
   })
 );
@@ -71,7 +75,7 @@ async function run() {
     // All collections
     const database = client.db("Voyage_Volunteer_DB");
     const allVolunteerPostCollection = database.collection("AllVolunteerPost");
-    const bookingCollection = database.collection("Booking");
+    const requestCollection = database.collection("Request");
 
     // get all volunteer post
     app.get("/all-volunteer-post", logger, async (req, res) => {
@@ -83,8 +87,7 @@ async function run() {
       } else {
         query = {};
       }
-      console.log("from bottom", query);
-      const result = await allVolunteerPostCollection.find(query).toArray();
+      const result = await allVolunteerPostCollection.find(query).sort({ _id: -1 }).toArray();
       res.send(result);
     });
 
@@ -105,12 +108,56 @@ async function run() {
       res.json(result);
     });
 
-    // set booking data
-    app.post("/bookings", async (req, res) => {
-      const newBooking = req.body;
-      const result = await bookingCollection.insertOne(newBooking);
+    // update volunteer post using patch method
+    app.patch("/all-volunteer-post/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedPost = {
+        $set: req.body,
+      };
+      const findId = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const result = await allVolunteerPostCollection.updateOne(
+        findId,
+        updatedPost,
+        options
+      );
+      res.send(result);
+    });
+
+    // delete volunteer post by delete method
+    app.delete("/all-volunteer-post/:id", async (req, res) => {
+      const id = req.params.id;
+      const findId = { _id: new ObjectId(id) };
+      const result = await allVolunteerPostCollection.deleteOne(findId);
+      res.send(result);
+    });
+    // set requests data
+    app.post("/requests", async (req, res) => {
+      const newRequest = req.body;
+      const result = await requestCollection.insertOne(newRequest);
       res.json(result);
     });
+
+    // get requests all and specific post
+    app.get("/requests", async (req, res) => {
+      let query = {};
+      if (req.query.email) {
+        query.v_email = req.query.email.toString();
+      } else {
+        query = {};
+      }
+      const result = await requestCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // delete specific requested post by Delete method
+    app.delete("/requests/:id", async (req, res) => {
+      const id = req.params.id;
+      const findId = { _id: new ObjectId(id) };
+      const result = await requestCollection.deleteOne(findId);
+      res.send(result);
+    });
+
     // get booking data
     // app.get("/bookings", logger, verifyToken, async (req, res) => {
     //   console.log("from valid token", req.user);
