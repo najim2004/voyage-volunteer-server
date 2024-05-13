@@ -50,23 +50,23 @@ const logger = async (req, res, next) => {
   next();
 };
 
-// const verifyToken = async (req, res, next) => {
-//   const token = req.cookies?.token;
-//   if (!token) {
-//     res.status(401).send({ message: "Not Authorized" });
-//     return;
-//   }
-//   jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
-//     if (err) {
-//       console.log(err);
-//       res.status(401).send({ message: "Not Authorized" });
-//       return;
-//     }
-//     console.log("value in the token: " + decoded);
-//     req.user = decoded;
-//     next();
-//   });
-// };
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) {
+    res.status(401).send({ message: "Not Authorized" });
+    return;
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+    if (err) {
+      console.log(err);
+      res.status(401).send({ message: "Not Authorized" });
+      return;
+    }
+    console.log("value in the token: " + decoded);
+    req.user = decoded;
+    next();
+  });
+};
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -83,8 +83,6 @@ async function run() {
       let query = {};
       if (req.query.title) {
         query.postTitle = decodeURIComponent(req.query.title);
-      } else if (req.query.email) {
-        query.organizer_email = req.query.email.toString();
       } else {
         query = {};
       }
@@ -94,6 +92,26 @@ async function run() {
         .toArray();
       res.send(result);
     });
+    // get all volunteer post by email
+    app.get(
+      "/my-volunteer-post/:email",
+      logger,
+      verifyToken,
+      async (req, res) => {
+        const email = req.params.email;
+        if (email !== req?.user.email) {
+          return res.status(403);
+        }
+        const query = {
+          organizer_email: email,
+        };
+        const result = await allVolunteerPostCollection
+          .find(query)
+          .sort({ _id: -1 })
+          .toArray();
+        res.send(result);
+      }
+    );
 
     // get single volunteer post
     app.get("/all-volunteer-post/:id", logger, async (req, res) => {
@@ -181,7 +199,10 @@ async function run() {
     });
 
     // get requests all and specific post
-    app.get("/requests", async (req, res) => {
+    app.get("/requests", verifyToken, logger, async (req, res) => {
+      if (req?.query?.email !== req?.user.email) {
+        return res.status(403);
+      }
       let query = {};
       if (req.query.email) {
         query.v_email = req.query.email.toString();
@@ -209,22 +230,6 @@ async function run() {
       res.send(result);
     });
 
-    // get booking data
-    // app.get("/bookings", logger, verifyToken, async (req, res) => {
-    //   console.log("from valid token", req.user);
-    //   console.log("now", req.query.email);
-    //   if (req?.query.email !== req?.user.email) {
-    //     return res.status(403);
-    //   }
-    //   let query = {};
-    //   if (req.query) {
-    //     query.email = req.query.email;
-    //   }
-    //   console.log("token", req.cookies.token);
-    //   const result = await bookingCollection.find(query).toArray();
-    //   res.send(result);
-    // });
-
     // delete booking data
     app.delete("/bookings/:id", async (req, res) => {
       const id = req.params.id;
@@ -232,27 +237,6 @@ async function run() {
       const result = await bookingCollection.deleteOne(findId);
       res.json(result);
     });
-    // update single coffee
-    // app.put("/services/:id", async (req, res) => {
-    //   const id = req.params.id;
-    //   const service = req.body;
-    //   const findId = { _id: new ObjectId(id) };
-    //   const options = { upsert: true };
-    //   const updatedService = {
-    //     $set: {},
-    //   };
-    //   const result = await database.updateOne(findId, updatedService, options);
-    //   res.json(result);
-    // });
-
-    // delete single coffee
-    app.delete("/services/:id", async (req, res) => {
-      const id = req.params.id;
-      const findId = { _id: new ObjectId(id) };
-      const result = await serviceCollection.deleteOne(findId);
-      res.json(result);
-    });
-
     // auth related api
     app.post("/jwt", logger, async (req, res) => {
       const user = req.body;
