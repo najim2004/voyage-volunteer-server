@@ -87,11 +87,14 @@ async function run() {
       } else {
         query = {};
       }
-      const result = await allVolunteerPostCollection.find(query).sort({ _id: -1 }).toArray();
+      const result = await allVolunteerPostCollection
+        .find(query)
+        .sort({ _id: -1 })
+        .toArray();
       res.send(result);
     });
 
-    // get single service
+    // get single volunteer post
     app.get("/all-volunteer-post/:id", logger, async (req, res) => {
       const id = req.params.id;
       const result = await allVolunteerPostCollection.findOne({
@@ -100,7 +103,7 @@ async function run() {
       res.json(result);
     });
 
-    // set single service
+    // set single volunteer post
     app.post("/all-volunteer-post", async (req, res) => {
       const newPost = req.body;
       // console.log("this is new coffee:", newCoffee);
@@ -131,6 +134,43 @@ async function run() {
       const result = await allVolunteerPostCollection.deleteOne(findId);
       res.send(result);
     });
+
+    // decrement volunteer needed number
+    app.patch("/all-volunteer-post/decrement/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedPost = {
+        $inc: {
+          volunteersNeeded: -1,
+        },
+      };
+      const findId = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const result = await allVolunteerPostCollection.updateOne(
+        findId,
+        updatedPost,
+        options
+      );
+      res.send(result);
+    });
+    // Increment volunteer needed number
+    app.patch("/all-volunteer-post/increment/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(158, id);
+      const updatedPost = {
+        $inc: {
+          volunteersNeeded: 1,
+        },
+      };
+      const findId = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const result = await allVolunteerPostCollection.updateOne(
+        findId,
+        updatedPost,
+        options
+      );
+      res.send(result);
+    });
+
     // set requests data
     app.post("/requests", async (req, res) => {
       const newRequest = req.body;
