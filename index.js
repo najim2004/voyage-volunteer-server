@@ -76,12 +76,13 @@ async function run() {
     const database = client.db("Voyage_Volunteer_DB");
     const allVolunteerPostCollection = database.collection("AllVolunteerPost");
     const requestCollection = database.collection("Request");
+    const testimonialCollection = database.collection("Testimonial");
 
     // get all volunteer post
     app.get("/all-volunteer-post", logger, async (req, res) => {
       let query = {};
-      if (req.query.category) {
-        query.category = decodeURIComponent(req.query.category);
+      if (req.query.title) {
+        query.postTitle = decodeURIComponent(req.query.title);
       } else if (req.query.email) {
         query.organizer_email = req.query.email.toString();
       } else {
@@ -152,6 +153,7 @@ async function run() {
       );
       res.send(result);
     });
+
     // Increment volunteer needed number
     app.patch("/all-volunteer-post/increment/:id", async (req, res) => {
       const id = req.params.id;
@@ -186,7 +188,10 @@ async function run() {
       } else {
         query = {};
       }
-      const result = await requestCollection.find(query).toArray();
+      const result = await requestCollection
+        .find(query)
+        .sort({ _id: -1 })
+        .toArray();
       res.send(result);
     });
 
@@ -195,6 +200,12 @@ async function run() {
       const id = req.params.id;
       const findId = { _id: new ObjectId(id) };
       const result = await requestCollection.deleteOne(findId);
+      res.send(result);
+    });
+
+    // get Testimonial data
+    app.get("/testimonial", async (req, res) => {
+      const result = await testimonialCollection.find().toArray();
       res.send(result);
     });
 
