@@ -1,9 +1,9 @@
 // ----------------import--------------------
 
+require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 
@@ -16,7 +16,9 @@ const port = process.env.PORT || 5000;
 app.use(
   cors({
     origin: [
+      "http://localhost:5173",
       "https://voyage-volunteer.firebaseapp.com",
+      "http://localhost:5174",
       "https://voyage-volunteer.web.app",
     ],
     credentials: true,
@@ -25,10 +27,6 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 // ---------------------middleware--------------------
-
-app.get("/", (req, res) => {
-  res.send("Craft and Painting server is running");
-});
 
 // --------------------mongodb--------------------
 
@@ -65,6 +63,12 @@ const verifyToken = async (req, res, next) => {
     req.user = decoded;
     next();
   });
+};
+
+const myCookies = {
+  httpOnly: true,
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+  secure: process.env.NODE_ENV === "production" ? true : false,
 };
 async function run() {
   try {
@@ -229,35 +233,25 @@ async function run() {
       res.send(result);
     });
 
-    // delete booking data
-    app.delete("/bookings/:id", async (req, res) => {
-      const id = req.params.id;
-      const findId = { _id: new ObjectId(id) };
-      const result = await bookingCollection.deleteOne(findId);
-      res.json(result);
-    });
     // auth related api
     app.post("/jwt", logger, async (req, res) => {
       const user = req.body;
       console.log("jwt user", user);
       const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
-        expiresIn: "1h",
+        expiresIn: "1d",
       });
-      res
-        .cookie("token", token, {
-          httpOnly: true,
-          secure: false,
-        })
-        .send({ success: true });
+      res.cookie("token", token, myCookies).send({ success: true });
     });
 
     app.post("/logout", async (req, res) => {
       const user = req.body;
-      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+      res
+        .clearCookie("token", { ...myCookies, maxAge: 0 })
+        .send({ success: true });
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
@@ -267,7 +261,9 @@ async function run() {
   }
 }
 run().catch(console.dir);
-
+app.get("/", (req, res) => {
+  res.send("Craft and Painting server is running");
+});
 // --------------------mongodb--------------------
 app.listen(port, () => {
   console.log(`server is running on port ${port}`);
