@@ -49,6 +49,7 @@ const logger = async (req, res, next) => {
 
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
+  console.log("52", token);
   if (!token) {
     res.status(401).send({ message: "Not Authorized" });
     return;
@@ -119,6 +120,7 @@ async function run() {
     // get single volunteer post
     app.get("/all-volunteer-post/:id", logger, async (req, res) => {
       const id = req.params.id;
+      console.log("122", id);
       const result = await allVolunteerPostCollection.findOne({
         _id: new ObjectId(id),
       });
@@ -203,19 +205,37 @@ async function run() {
 
     // get requests all and specific post
     app.get("/requests", verifyToken, logger, async (req, res) => {
-      if (req?.query?.email !== req?.user.email) {
-        return res.status(403);
-      }
       let query = {};
-      if (req.query.email) {
-        query.v_email = req.query.email.toString();
+      if (req?.query?.v_email) {
+        query.v_email = req?.query?.v_email.toString();
+        if (req?.query?.v_email !== req?.user.email) {
+          return res.status(403);
+        }
       } else {
-        query = {};
+        query.organizer_email = req?.query?.organizer_email;
+        if (req?.query?.organizer_email !== req?.user.email) {
+          return res.status(403);
+        }
       }
       const result = await requestCollection
         .find(query)
         .sort({ _id: -1 })
         .toArray();
+      res.send(result);
+    });
+
+    // update specific requested post by patch method
+    app.patch("/requests/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      if (req.body.email !== req?.user.email) {
+        return res.status(403);
+      }
+      const updatedPost = {
+        $set: { status: req.body.status },
+      };
+      console.log("236", updatedPost);
+      const findId = { _id: new ObjectId(id) };
+      const result = await requestCollection.updateOne(findId, updatedPost);
       res.send(result);
     });
 
@@ -262,7 +282,7 @@ async function run() {
 }
 run().catch(console.dir);
 app.get("/", (req, res) => {
-  res.send("Craft and Painting server is running");
+  res.send("Voyage Volunteer server is running");
 });
 // --------------------mongodb--------------------
 app.listen(port, () => {
